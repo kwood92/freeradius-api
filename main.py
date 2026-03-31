@@ -2,7 +2,10 @@ from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.docs import get_swagger_ui_html
 from fastapi.openapi.utils import get_openapi
+from fastapi.responses import JSONResponse
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
+
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from src.api.endpoints import (
     nas_router,
@@ -17,6 +20,15 @@ from src.api.endpoints.radacct import router as radacct_router
 from src.api.endpoints.auth import get_current_username
 from src.core.config import get_settings
 
+class CatchAllMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        try:
+            return await call_next(request)
+        except Exception as e:
+            if app.debug:
+                print(e)
+            return JSONResponse(status_code=500, content={"error": "Middleware caught error"})
+
 settings = get_settings()
 security = HTTPBasic()
 
@@ -26,6 +38,8 @@ app = FastAPI(
     docs_url=None,
     redoc_url=None,
 )
+
+app.add_middleware(CatchAllMiddleware)
 
 app.add_middleware(
     CORSMiddleware,
